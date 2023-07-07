@@ -24,6 +24,7 @@ export class WhatsappController {
     @Body('text') text: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
+    console.log(number);
     if (file) {
       return this.whatsappService.sendFile(
         number,
@@ -34,16 +35,6 @@ export class WhatsappController {
     } else {
       return this.whatsappService.sendText(number, text);
     }
-  }
-
-  @Get()
-  public async getAllMessages() {
-    return this.whatsappService.messages;
-  }
-
-  @Get('messages/:number')
-  public async getAllMessagesFromNumber(@Param('number') number: string) {
-    return await this.whatsappService.getAllNumberMessages(number);
   }
 
   @Get('files/:fileName')
