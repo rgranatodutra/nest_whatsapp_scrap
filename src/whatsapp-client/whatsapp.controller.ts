@@ -12,28 +12,45 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { WhatsappService } from './whatsapp.service';
 import { Response } from 'express';
+import { WhatsappServiceII } from './whatsappII.service';
 
 @Controller('whatsapp')
 export class WhatsappController {
-  constructor(private readonly whatsappService: WhatsappService) {}
+  constructor(
+    private readonly whatsappService: WhatsappService,
+    private readonly whatsappServiceII: WhatsappServiceII,
+  ) { }
 
-  @Post('messages/:number')
+  @Post('messages/:fromNumber/:toNumber')
   @UseInterceptors(FileInterceptor('file'))
   public async sendMessage(
-    @Param('number') number: string,
+    @Param('toNumber') toNumber: string,
+    @Param('fromNumber') fromNumber: string,
     @Body('text') text: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    console.log(number);
-    if (file) {
-      return this.whatsappService.sendFile(
-        number,
-        file.buffer,
-        file.mimetype,
-        file.originalname,
-      );
-    } else {
-      return this.whatsappService.sendText(number, text);
+    if (fromNumber === process.env.WHATSAPP_NUMBER) {
+      if (file) {
+        return this.whatsappService.sendFile(
+          toNumber,
+          file.buffer,
+          file.mimetype,
+          file.originalname,
+        );
+      } else {
+        return this.whatsappService.sendText(toNumber, text);
+      }
+    } else if (fromNumber === process.env.WHATSAPP_NUMBER_II) {
+      if (file) {
+        return this.whatsappServiceII.sendFile(
+          toNumber,
+          file.buffer,
+          file.mimetype,
+          file.originalname,
+        );
+      } else {
+        return this.whatsappServiceII.sendText(toNumber, text);
+      }
     }
   }
 

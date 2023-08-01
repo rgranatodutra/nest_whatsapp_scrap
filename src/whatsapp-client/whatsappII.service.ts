@@ -9,20 +9,20 @@ import { messageParser } from './utils/messageParser.util';
 import { print } from './utils/consoleMessage.util.';
 
 @Injectable()
-export class WhatsappService {
+export class WhatsappServiceII {
 	private client: Client;
 
 	constructor(
 		private readonly httpService: HttpService
 	) {
 		config();
-		this.client = new Client({ authStrategy: new LocalAuth({ clientId: "client1" }) });
+		this.client = new Client({ authStrategy: new LocalAuth({ clientId: "client2" }) });
 
 		const { REQUEST_URL, WHATSAPP_NUMBER } = process.env;
-		const INITIALIZE_URL = REQUEST_URL + '/wwebjs/init/' + process.env.WHATSAPP_NUMBER;
-		const QR_URL = REQUEST_URL + '/wwebjs/qr/' + process.env.WHATSAPP_NUMBER;
-		const READY_URL = REQUEST_URL + '/wwebjs/ready/' + process.env.WHATSAPP_NUMBER;
-		const AUTH_URL = REQUEST_URL + '/wwebjs/auth/' + process.env.WHATSAPP_NUMBER;
+		const INITIALIZE_URL = REQUEST_URL + '/wwebjs/init/' + process.env.WHATSAPP_NUMBER_II;
+		const QR_URL = REQUEST_URL + '/wwebjs/qr/' + process.env.WHATSAPP_NUMBER_II;
+		const READY_URL = REQUEST_URL + '/wwebjs/ready/' + process.env.WHATSAPP_NUMBER_II;
+		const AUTH_URL = REQUEST_URL + '/wwebjs/auth/' + process.env.WHATSAPP_NUMBER_II;
 
 		const ObservableInitializeRequest = this.httpService.put(INITIALIZE_URL, {});
 		const PromiseInitializeResponse = firstValueFrom(ObservableInitializeRequest);
@@ -34,7 +34,7 @@ export class WhatsappService {
 			const ObservableQrCodeRequest = this.httpService.post(QR_URL, { qr });
 			const PromiseQrCodeResponse = firstValueFrom(ObservableQrCodeRequest);
 
-			PromiseQrCodeResponse.then((res) => console.log(`New qr code for: ${process.env.WHATSAPP_NUMBER}`));
+			PromiseQrCodeResponse.then((res) => console.log(`New qr code for: ${process.env.WHATSAPP_NUMBER_II}`));
 		});
 
 		this.client.on('authenticated', () => {
