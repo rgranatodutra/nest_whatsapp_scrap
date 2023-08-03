@@ -3,14 +3,14 @@ import { createReadStream, existsSync } from 'fs';
 import { join } from 'path';
 import WAWebJS, { Client, LocalAuth, MessageMedia } from 'whatsapp-web.js';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, catchError, retry } from 'rxjs';
 import { config } from 'dotenv';
 import { messageParser } from './utils/messageParser.util';
-import { print } from './utils/consoleMessage.util.';
 
 @Injectable()
 export class WhatsappService {
 	private client: Client;
+	public isAuthenticated: boolean = false;
 
 	constructor(
 		private readonly httpService: HttpService
@@ -24,17 +24,30 @@ export class WhatsappService {
 		const READY_URL = REQUEST_URL + '/wwebjs/ready/' + process.env.WHATSAPP_NUMBER;
 		const AUTH_URL = REQUEST_URL + '/wwebjs/auth/' + process.env.WHATSAPP_NUMBER;
 
-		const ObservableInitializeRequest = this.httpService.put(INITIALIZE_URL, {});
-		const PromiseInitializeResponse = firstValueFrom(ObservableInitializeRequest);
-
-		PromiseInitializeResponse
-			.then((res) => console.log(res.data))
+		this.httpService.post(INITIALIZE_URL, {})
+			.pipe(
+				retry(2), // Tentar novamente até 3 vezes em caso de falha
+				catchError(error => {
+					console.log("Erro ao enviar qr-code:", error.message);
+					return ([]);
+				})
+			)
+			.subscribe((res) => {
+				console.log(res.data);
+			});
 
 		this.client.on('qr', (qr: string) => {
-			const ObservableQrCodeRequest = this.httpService.post(QR_URL, { qr });
-			const PromiseQrCodeResponse = firstValueFrom(ObservableQrCodeRequest);
-
-			PromiseQrCodeResponse.then((res) => console.log(`New qr code for: ${process.env.WHATSAPP_NUMBER}`));
+			this.httpService.post(QR_URL, { qr })
+				.pipe(
+					retry(1), // Tentar novamente até 3 vezes em caso de falha
+					catchError(error => {
+						console.log("Erro ao enviar qr-code:", error.message);
+						return ([]);
+					})
+				)
+				.subscribe((res) => {
+					console.log(`New qr code for: ${process.env.WHATSAPP_NUMBER}`);
+				});
 		});
 
 		this.client.on('authenticated', () => {
@@ -42,37 +55,46 @@ export class WhatsappService {
 			const PromiseQrCodeResponse = firstValueFrom(ObservableQrCodeRequest);
 
 			PromiseQrCodeResponse.then((res) => console.log(res.data));
+			this.isAuthenticated = true;
 		});
 
 		this.client.on('ready', () => {
 			const ObservableReadyRequest = this.httpService.put(READY_URL);
 			const PromiseReadyResponse = firstValueFrom(ObservableReadyRequest);
 
-			PromiseReadyResponse.then((res) => console.log(res.data));
+			PromiseReadyResponse.then((res) => {
+				this.isAuthenticated = true;
+			});
 		});
 
 		this.client.on('message', async (message: WAWebJS.Message) => {
 			const messageChat = await message.getChat();
-			print(message);
 
-			const messageDate = new Date(`${message.timestamp}000`);
+			const messageDate = new Date(Number(`${message.timestamp}000`));
 			const currentDate = new Date();
-			const isMessageFromNow = currentDate.getTime() - messageDate.getTime();
+			const isMessageFromNow = (currentDate.getTime() - messageDate.getTime()) <= 300000;
 
 			if (!messageChat.isGroup && isMessageFromNow) {
-				console.log('Não é de grupo');
 				const fromNumber = messageChat.id.user;
 				const parsedMessage = await messageParser(message);
 
 				const MESSAGE_URL =
 					REQUEST_URL +
-					`/wwebjs/messages/receive/${WHATSAPP_NUMBER}/${fromNumber}`;
-
-				console.log(MESSAGE_URL);
+					`/wwebjs/receive_message/${WHATSAPP_NUMBER}/${fromNumber}`;
 
 				try {
-					const observable = this.httpService.post(MESSAGE_URL, parsedMessage);
-					await firstValueFrom(observable);
+					this.httpService.post(MESSAGE_URL, parsedMessage)
+						.pipe(
+							retry(1),
+							catchError(error => {
+								console.log(error.status)
+								console.log("Erro ao enviar mensagem para o backend:", error.response.data);
+								return ([]);
+							})
+						)
+						.subscribe((res) => {
+							console.log(`Mensagem enviada ao backend com sucesso!`);
+						});
 				} catch (err) {
 					console.log('Erro ao tentar enviar mensagem para o inpulse.');
 					console.log(MESSAGE_URL, parsedMessage);
@@ -80,6 +102,32 @@ export class WhatsappService {
 			};
 		});
 
+		this.client.on("message_ack", (data) => {
+			const UPDATE_MESSAGE_URL = REQUEST_URL + `/wwebjs/update_message/${data.id._serialized}`;
+
+			const ackStrings = {
+				1: "PENDING",
+				2: "RECEIVED",
+				3: "READ",
+				4: "4",
+				5: "5"
+			};
+
+			this.httpService.put(UPDATE_MESSAGE_URL, { status: ackStrings[data.ack] })
+				.pipe(
+					retry(1),
+					catchError(error => {
+						console.log(error.status)
+						console.log("Erro ao enviar mensagem para o backend:", error.response.data);
+						return ([]);
+					})
+				)
+				.subscribe((res) => {
+					console.log(`Mensagem enviada ao backend com sucesso!`);
+				});
+
+
+		});
 		this.client.initialize();
 	};
 

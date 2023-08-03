@@ -12,13 +12,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { WhatsappService } from './whatsapp.service';
 import { Response } from 'express';
-import { WhatsappServiceII } from './whatsappII.service';
 
 @Controller('whatsapp')
 export class WhatsappController {
   constructor(
     private readonly whatsappService: WhatsappService,
-    private readonly whatsappServiceII: WhatsappServiceII,
   ) { }
 
   @Post('messages/:fromNumber/:toNumber')
@@ -29,6 +27,7 @@ export class WhatsappController {
     @Body('text') text: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
+    console.log(fromNumber, process.env.WHATSAPP_NUMBER);
     if (fromNumber === process.env.WHATSAPP_NUMBER) {
       if (file) {
         return this.whatsappService.sendFile(
@@ -39,17 +38,6 @@ export class WhatsappController {
         );
       } else {
         return this.whatsappService.sendText(toNumber, text);
-      }
-    } else if (fromNumber === process.env.WHATSAPP_NUMBER_II) {
-      if (file) {
-        return this.whatsappServiceII.sendFile(
-          toNumber,
-          file.buffer,
-          file.mimetype,
-          file.originalname,
-        );
-      } else {
-        return this.whatsappServiceII.sendText(toNumber, text);
       }
     }
   }
