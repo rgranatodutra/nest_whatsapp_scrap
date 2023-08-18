@@ -123,11 +123,10 @@ export class WhatsappService {
 					})
 				)
 				.subscribe((res) => {
-					console.log(`Mensagem enviada ao backend com sucesso!`);
+					console.log(`Status de mensagem enviado ao backend com sucesso!`);
 				});
-
-
 		});
+
 		this.client.initialize();
 	};
 

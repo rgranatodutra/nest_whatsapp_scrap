@@ -28,3 +28,9 @@ export class ReceiveMessageFileDto {
 export class ParsedMessage extends ReceiveMessageDto {
   ARQUIVO: ReceiveMessageFileDto | null;
 }
+
+export class CustomFile {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+}
