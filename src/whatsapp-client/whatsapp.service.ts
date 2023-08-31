@@ -6,6 +6,16 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom, catchError, retry } from 'rxjs';
 import { config } from 'dotenv';
 import { messageParser } from './utils/messageParser.util';
+import { formatToOpusAudio } from './utils/formatToOpusAudio.util';
+
+interface sendFileProps {
+	number: string,
+	file: Buffer,
+	mime: string,
+	name: string,
+	caption?: string
+	referenceId?: string
+}
 
 @Injectable()
 export class WhatsappService {
@@ -65,6 +75,8 @@ export class WhatsappService {
 			PromiseReadyResponse.then((res) => {
 				this.isAuthenticated = true;
 			});
+
+			console.log("ready")
 		});
 
 		this.client.on('message', async (message: WAWebJS.Message) => {
@@ -73,9 +85,12 @@ export class WhatsappService {
 			const messageDate = new Date(Number(`${message.timestamp}000`));
 			const currentDate = new Date();
 			const isMessageFromNow = (currentDate.getTime() - messageDate.getTime()) <= 300000;
+			const whiteList = ["558391466064"];
+			const fromNumber = messageChat.id.user;
+			const isMessageOnWhitelist = whiteList.includes(fromNumber);
 
-			if (!messageChat.isGroup && isMessageFromNow) {
-				const fromNumber = messageChat.id.user;
+			if (!messageChat.isGroup && isMessageFromNow && !message.isStatus && isMessageOnWhitelist) {
+
 				const parsedMessage = await messageParser(message);
 
 				const MESSAGE_URL =
@@ -125,45 +140,55 @@ export class WhatsappService {
 				.subscribe((res) => {
 					console.log(`Mensagem enviada ao backend com sucesso!`);
 				});
-
-
 		});
+
 		this.client.initialize();
 	};
 
-	public async sendText(number: string, text: string) {
+	public async sendText(number: string, text: string, referenceId?: string) {
 		try {
 			const chatId = number + '@c.us';
-			const sentMessage = await this.client.sendMessage(chatId, text);
+
+			const sentMessage = await this.client.sendMessage(chatId, text, {
+				quotedMessageId: referenceId
+			});
+
+			console.log(sentMessage);
+
 			const parsedMessage = messageParser(sentMessage);
 			return parsedMessage;
 		} catch (error) {
+			console.error(error);
 			throw new InternalServerErrorException('Falha ao enviar mensagem', {
 				cause: error,
 			});
 		};
 	};
 
-	public async sendFile(
-		number: string,
-		file: Buffer,
-		mime: string,
-		name: string,
-	) {
+	public async sendFile(props: sendFileProps) {
 		try {
-			const chatId = number + '@c.us';
+			const chatId = props.number.replace(/\D+/g, '') + '@c.us';
 
-			const media = new MessageMedia(mime, file.toString('base64'), name);
+			if (props.mime.includes("audio")) {
+				props.file = await formatToOpusAudio(props.file)
+			};
+
+			console.log(chatId);
+
+			const media = new MessageMedia(props.mime, props.file.toString('base64'), props.name);
 			const sentMessage = await this.client.sendMessage(chatId, media);
+
 			const parsedMessage = messageParser(sentMessage);
 
 			return parsedMessage;
 		} catch (error) {
+			console.error(error);
 			throw new InternalServerErrorException('Falha ao enviar mensagem', {
 				cause: error,
 			});
 		};
 	};
+
 
 	public getFile(fileName: string) {
 		const filesPath = join(__dirname, '../../', 'files');

@@ -25,19 +25,22 @@ export class WhatsappController {
     @Param('toNumber') toNumber: string,
     @Param('fromNumber') fromNumber: string,
     @Body('text') text: string,
+    @Body('referenceId') referenceId?: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    console.log(fromNumber, process.env.WHATSAPP_NUMBER);
+    console.log(referenceId);
     if (fromNumber === process.env.WHATSAPP_NUMBER) {
       if (file) {
-        return this.whatsappService.sendFile(
-          toNumber,
-          file.buffer,
-          file.mimetype,
-          file.originalname,
-        );
+        return this.whatsappService.sendFile({
+          file: file.buffer,
+          mime: file.mimetype,
+          name: file.originalname,
+          number: toNumber,
+          caption: text,
+          referenceId: referenceId
+        });
       } else {
-        return this.whatsappService.sendText(toNumber, text);
+        return this.whatsappService.sendText(toNumber, text, referenceId);
       }
     }
   }
