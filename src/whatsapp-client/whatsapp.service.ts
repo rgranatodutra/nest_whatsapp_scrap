@@ -85,11 +85,14 @@ export class WhatsappService {
 			const messageDate = new Date(Number(`${message.timestamp}000`));
 			const currentDate = new Date();
 			const isMessageFromNow = (currentDate.getTime() - messageDate.getTime()) <= 300000;
-			const whiteList = ["558391466064"];
 			const fromNumber = messageChat.id.user;
-			const isMessageOnWhitelist = whiteList.includes(fromNumber);
 
-			if (!messageChat.isGroup && isMessageFromNow && !message.isStatus && isMessageOnWhitelist) {
+			// Adiciona os numeros que você quer incluir nos testes
+			// Remova a WhiteList para implementar no cliente
+			/* - */const whiteList = ["558391466064"];
+			/* - */const isMessageOnWhitelist = whiteList.includes(fromNumber);
+
+			if (!messageChat.isGroup && isMessageFromNow && !message.isStatus /* - */ && isMessageOnWhitelist) {
 
 				const parsedMessage = await messageParser(message);
 
@@ -172,8 +175,6 @@ export class WhatsappService {
 			if (props.mime.includes("audio")) {
 				props.file = await formatToOpusAudio(props.file)
 			};
-
-			console.log(chatId);
 
 			const media = new MessageMedia(props.mime, props.file.toString('base64'), props.name);
 			const sentMessage = await this.client.sendMessage(chatId, media);

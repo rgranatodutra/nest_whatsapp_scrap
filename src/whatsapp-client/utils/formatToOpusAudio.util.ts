@@ -6,7 +6,7 @@ import * as ffmpeg from 'fluent-ffmpeg';
 
 export async function formatToOpusAudio(file: Buffer) {
     return new Promise<Buffer>((resolve, reject) => {
-        const tempPath = "../../temp/"
+        const tempPath = "../../../temp/"
         const savePath = join(__dirname, tempPath, `${randomUUID()}.ogg`);
 
         const readableStream = new Readable({
