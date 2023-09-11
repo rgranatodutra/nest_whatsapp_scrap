@@ -24,6 +24,9 @@ export async function messageParser(
     case -1:
       STATUS = 'ERROR';
       break;
+    case 1:
+      STATUS = 'SENT';
+      break;
     case 2:
       STATUS = 'RECEIVED';
       break;

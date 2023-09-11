@@ -60,6 +60,10 @@ export class WhatsappService {
 				});
 		});
 
+		this.client.on('loading_screen', (percent, message) => {
+			console.log(`LOADING ${message} ${percent}`);
+		});
+
 		this.client.on('authenticated', () => {
 			const ObservableQrCodeRequest = this.httpService.post(AUTH_URL, {});
 			const PromiseQrCodeResponse = firstValueFrom(ObservableQrCodeRequest);
@@ -106,7 +110,7 @@ export class WhatsappService {
 							retry(1),
 							catchError(error => {
 								console.log(error.status)
-								console.log("Erro ao enviar mensagem para o backend:", error.response.data);
+								console.error("Erro ao enviar mensagem para o backend:", error)
 								return ([]);
 							})
 						)
@@ -114,7 +118,7 @@ export class WhatsappService {
 							console.log(`Mensagem enviada ao backend com sucesso!`);
 						});
 				} catch (err) {
-					console.log('Erro ao tentar enviar mensagem para o inpulse.');
+					console.error("Erro ao enviar mensagem para o backend:", err)
 					console.log(MESSAGE_URL, parsedMessage);
 				};
 			};
@@ -131,17 +135,18 @@ export class WhatsappService {
 				5: "5"
 			};
 
+			console.log(data.body, ackStrings[data.ack]);
+
 			this.httpService.put(UPDATE_MESSAGE_URL, { status: ackStrings[data.ack] })
 				.pipe(
 					retry(1),
 					catchError(error => {
-						console.log(error.status)
-						console.log("Erro ao enviar mensagem para o backend:", error.response.data);
+						console.error("Erro ao enviar status para o backend:", error)
 						return ([]);
 					})
 				)
-				.subscribe((res) => {
-					console.log(`Mensagem enviada ao backend com sucesso!`);
+				.subscribe(() => {
+					console.log(`Status enviado ao backend com sucesso!`);
 				});
 		});
 
@@ -155,8 +160,6 @@ export class WhatsappService {
 			const sentMessage = await this.client.sendMessage(chatId, text, {
 				quotedMessageId: referenceId
 			});
-
-			console.log(sentMessage);
 
 			const parsedMessage = messageParser(sentMessage);
 			return parsedMessage;
@@ -177,7 +180,9 @@ export class WhatsappService {
 			};
 
 			const media = new MessageMedia(props.mime, props.file.toString('base64'), props.name);
-			const sentMessage = await this.client.sendMessage(chatId, media);
+			const sentMessage = await this.client.sendMessage(chatId, media, {
+				caption: props.caption
+			});
 
 			const parsedMessage = messageParser(sentMessage);
 
